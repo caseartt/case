@@ -153,6 +153,14 @@ h1{font-size:2.1rem;margin:6px 0}
 .step{padding:16px}
 }
 .cats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.igsteps{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0 14px}
+.igsteps span{display:flex;align-items:center;gap:6px;font-size:.85rem;font-weight:700}
+.igsteps span+span:before{content:"›";opacity:.4;margin-right:2px;font-size:1.1rem}
+.igsteps b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:.75rem}
+.igbig{display:flex;align-items:center;justify-content:center;gap:14px;width:100%;padding:18px 20px;border-radius:22px;color:#fff!important;text-decoration:none;text-align:left;background:linear-gradient(45deg,#f09433,#e6683c 30%,#dc2743 55%,#cc2366 75%,#bc1888);box-shadow:0 12px 26px rgba(220,39,67,.35);transition:transform .15s}
+.igbig:active{transform:scale(.98)}
+.igbig strong{display:block;font-size:1.15rem;letter-spacing:.01em}
+.igbig small{display:block;opacity:.92;font-size:.78rem;margin-top:2px}
 </style>
 </head>
 <body>
@@ -252,7 +260,7 @@ h1{font-size:2.1rem;margin:6px 0}
   <div id="items"></div>
   <div class="df"><div class="tot"><span>Total</span><b id="total">0 DT</b></div>
   <button class="btn ig2 ig" id="checkout" disabled>Commander sur Instagram</button>
-  <small>Le message de commande est prêt à envoyer sur @case__artt.</small></div>
+  <small>Le message est copié automatiquement : colle-le dans la discussion @case__artt puis envoie.</small></div>
 </aside>
 <dialog class="dlg" id="dlg"><div class="in">
   <h3>Ta commande est prête</h3>
@@ -263,6 +271,15 @@ h1{font-size:2.1rem;margin:6px 0}
   <a class="btn ig2" id="dm" href="https://ig.me/m/case__artt" target="_blank" rel="noopener">Ouvrir la discussion Instagram</a>
   <button class="btn x" id="close">Fermer</button>
   <p>Envoie l'image avec le message dans la discussion @case__artt. Si le bouton ne marche pas, garde l'image appuyée pour l'enregistrer.</p>
+</div></dialog>
+<dialog class="dlg" id="igdlg"><div class="in">
+  <h3>Ta commande est prête ✔</h3>
+  <p id="igmsg" style="white-space:pre-line;background:rgba(0,0,0,.06);border-radius:12px;padding:10px;font-size:.9rem"></p>
+  <div class="igsteps"><span><b>1</b>Ouvrir</span><span><b>2</b>Coller</span><span><b>3</b>Envoyer</span></div>
+  <p id="igfiles" hidden style="font-size:.85rem">N'oublie pas d'envoyer aussi l'image de ton design.</p>
+  <a class="igbig" id="igopen" href="https://ig.me/m/case__artt" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span><strong>Ouvrir Instagram</strong><small>Message copié · appui long sur « Message… » › Coller › Envoyer</small></span></a>
+  <button class="btn" id="igcopy">Copier le message</button>
+  <button class="btn x" id="igclose">Fermer</button>
 </div></dialog>
 <div id="toast" role="status"></div>
 
@@ -350,7 +367,7 @@ document.querySelectorAll('.stage svg').forEach(sv=>{
   sv.addEventListener('pointerup',()=>drag=null);
 });
 
-let t;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('on');clearTimeout(t);t=setTimeout(()=>el.classList.remove('on'),1800)}
+let t;function toast(m,ms){const el=$('#toast');el.textContent=m;el.classList.add('on');clearTimeout(t);t=setTimeout(()=>el.classList.remove('on'),ms||1800)}
 
 
 
@@ -419,13 +436,24 @@ $('#grid').onclick=e=>{
   const c=e.target.closest('[data-pr]');if(c){setProd(c.dataset.pr);location.hash='#/home'}
   if(b){tryDesign(+b.dataset.t);location.hash='#/home'}
 };
+const igLink=t=>'https://ig.me/m/case__artt?text='+encodeURIComponent(t);
+function openIG(t,msg){
+  try{navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}
+  window.open(igLink(t),'_blank','noopener');
+  toast(msg||'Message copié ✔ Colle-le dans la discussion (appui long > Coller) puis envoie.',4500);
+}
+function showIG(t,hasFiles){
+  $('#igmsg').textContent=t;$('#igfiles').hidden=!hasFiles;$('#igopen').href=igLink(t);$('#igdlg').showModal();
+}
+const copyIG=()=>{try{navigator.clipboard.writeText($('#igmsg').textContent).catch(()=>{})}catch(e){}};
+$('#igopen').addEventListener('click',()=>{copyIG();setTimeout(()=>$('#igdlg').close(),300)});
+$('#igcopy').onclick=()=>{copyIG();toast('Message copié ✔',2500)};
+$('#igclose').onclick=()=>$('#igdlg').close();
 $('#checkout').onclick=async()=>{
   const text='Bonjour, je souhaite commander :\n'+cart.map(x=>'• '+x.q+' × '+x.name+' ('+x.model+') — '+x.p*x.q+' DT').join('\n')+'\nTotal : '+cart.reduce((a,x)=>a+x.p*x.q,0)+' DT';
   const files=cart.filter(x=>x.file).map(x=>x.file);
   try{if(files.length&&navigator.canShare&&navigator.canShare({files})){await navigator.share({files,text});return}}catch(e){if(e&&e.name==='AbortError')return}
-  try{await navigator.clipboard.writeText(text)}catch(e){}
-  toast(files.length?'Message copié. Envoie aussi tes images de design.':'Message copié, colle-le dans Instagram.');
-  window.open('https://ig.me/m/case__artt','_blank','noopener');
+  showIG(text,files.length>0);
 };
 renderCart();
 
@@ -464,7 +492,7 @@ $('#send').onclick=async()=>{
     fileOut=new File([blobOut],name,{type:'image/png'});
     orderText='Bonjour, je souhaite commander : '+PR[prod].name+' ('+lab()+') avec ce design.';
     $('#prev').src=URL.createObjectURL(blobOut);
-    $('#msg').textContent=orderText;
+    $('#msg').textContent=orderText;$('#dm').href=igLink(orderText);
     $('#dlg').showModal();
   }catch(e){toast("Impossible de préparer l'image. Réessaie.")}
 };
